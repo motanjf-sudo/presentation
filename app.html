@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ساخت پرزنتیشن هوشمند</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#060608;--bg2:#0d0d12;--bg3:#13131a;--bg4:#1a1a24;--bg5:#20202c;
+  --b:rgba(255,255,255,0.05);--b2:rgba(255,255,255,0.1);--b3:rgba(255,255,255,0.18);
+  --t:#eeeef8;--t2:#7878a0;--t3:#3a3a55;
+  --a:#7c6dfa;--a2:#b8adff;--a3:rgba(124,109,250,0.12);--a4:rgba(124,109,250,0.06);
+  --g:#06d6a0;--o:#ffa552;--r:#ff6b6b;
+  --r8:8px;--r12:12px;--r16:16px;--r20:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Vazirmatn',sans-serif;background:var(--bg);color:var(--t);min-height:100vh;direction:rtl;overflow-x:hidden}
+
+/* grain overlay */
+body::before{content:'';position:fixed;inset:0;opacity:.025;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
+
+/* glow */
+.glow{position:fixed;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(124,109,250,0.06) 0%,transparent 70%);pointer-events:none;z-index:0;top:-100px;left:50%;transform:translateX(-50%)}
+
+.shell{max-width:720px;margin:0 auto;padding:2rem 1.5rem 6rem;position:relative;z-index:1}
+
+/* header */
+.hdr{text-align:center;padding:2rem 0 3rem;animation:fadeUp .6s ease both}
+.hdr-tag{display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--a2);background:var(--a3);border:1px solid rgba(124,109,250,.2);border-radius:20px;padding:6px 16px;margin-bottom:1.4rem}
+.hdr-tag span{width:6px;height:6px;border-radius:50%;background:var(--a2);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.hdr h1{font-size:36px;font-weight:700;letter-spacing:-1px;line-height:1.15;margin-bottom:.6rem}
+.hdr h1 em{font-style:normal;background:linear-gradient(135deg,var(--a2),var(--g));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdr p{font-size:14px;color:var(--t2);line-height:1.6}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* steps */
+.steps{display:flex;background:var(--bg2);border:1px solid var(--b);border-radius:var(--r12);padding:6px;gap:3px;margin-bottom:2rem}
+.stp{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 4px;border-radius:9px;font-size:11px;font-weight:500;color:var(--t3);transition:all .25s}
+.stp-n{width:20px;height:20px;border-radius:50%;background:var(--bg4);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .25s}
+.stp.active{color:var(--t);background:var(--bg4)}
+.stp.active .stp-n{background:linear-gradient(135deg,var(--a),#9b8cff);color:#fff;box-shadow:0 0 12px rgba(124,109,250,.4)}
+.stp.done{color:var(--g)}.stp.done .stp-n{background:rgba(6,214,160,.15);color:var(--g)}
+.stp-lbl{display:none}@media(min-width:500px){.stp-lbl{display:inline}}
+
+/* API card */
+.api-card{background:linear-gradient(135deg,rgba(124,109,250,.08),rgba(6,214,160,.04));border:1px solid rgba(124,109,250,.2);border-radius:var(--r16);padding:1.4rem;margin-bottom:1.5rem;animation:fadeUp .5s .1s ease both}
+.api-hdr{display:flex;align-items:center;gap:10px;margin-bottom:1.1rem}
+.api-dot{width:8px;height:8px;border-radius:50%;background:var(--a2)}
+.api-title{font-size:13px;font-weight:600;color:var(--a2)}
+.api-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.kw{position:relative}
+.kw input{background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:var(--r8);color:var(--t);font-family:monospace;font-size:12px;padding:10px 38px 10px 14px;width:100%;outline:none;transition:border-color .2s;letter-spacing:.3px}
+.kw input:focus{border-color:var(--a);background:rgba(124,109,250,.05)}
+.keye{position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;transition:color .2s}
+.keye:hover{color:var(--t2)}
+.kst{font-size:11px;margin-top:8px;min-height:16px;padding:0 2px}
+.kst.ok{color:var(--g)}.kst.warn{color:var(--o)}
+
+/* card */
+.card{background:var(--bg2);border:1px solid var(--b);border-radius:var(--r16);padding:1.4rem;margin-bottom:.9rem;animation:fadeUp .5s ease both;transition:border-color .2s}
+.card:hover{border-color:var(--b2)}
+.card-hdr{display:flex;align-items:center;gap:10px;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid var(--b)}
+.c-icon{width:34px;height:34px;border-radius:10px;background:var(--a3);border:1px solid rgba(124,109,250,.15);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.c-title{font-size:13px;font-weight:600;color:var(--t)}.c-sub{font-size:11px;color:var(--t3);margin-top:2px}
+
+/* grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* fields */
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em}
+.fld input,.fld textarea,.fld select{
+  background:var(--bg3);border:1px solid var(--b);border-radius:var(--r8);
+  color:var(--t);font-family:'Vazirmatn',sans-serif;font-size:13px;
+  padding:9px 12px;width:100%;outline:none;direction:rtl;
+  transition:border-color .2s,background .2s;-webkit-appearance:none;
+}
+.fld input:focus,.fld textarea:focus,.fld select:focus{border-color:var(--a);background:var(--bg4)}
+.fld input::placeholder,.fld textarea::placeholder{color:var(--t3);font-size:12px}
+.fld textarea{resize:vertical;min-height:70px;line-height:1.6}
+.fld select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%233a3a55'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 12px center;padding-left:32px;cursor:pointer}
+.fld select option{background:var(--bg3)}
+.ci{display:none;margin-top:5px}.ci.show{display:block;animation:fadeUp .15s ease}
+.ci input{border-color:rgba(124,109,250,.35)!important}
+
+/* tags */
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:3px}
+.tag{padding:5px 12px;font-size:11px;border-radius:20px;cursor:pointer;border:1px solid var(--b2);background:var(--bg3);color:var(--t2);transition:all .15s;user-select:none;font-weight:500}
+.tag:hover{border-color:var(--a);color:var(--t);background:var(--bg4)}
+.tag.on{background:var(--a3);color:var(--a2);border-color:rgba(124,109,250,.4);font-weight:600}
+
+/* slider */
+.sl-row{display:flex;align-items:center;gap:12px;margin-top:6px}
+.sl-row input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:var(--bg5);border-radius:2px;outline:none;cursor:pointer}
+.sl-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,var(--a),#9b8cff);cursor:pointer;box-shadow:0 0 8px rgba(124,109,250,.5);transition:transform .15s}
+.sl-row input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.sl-n{font-size:16px;font-weight:700;color:var(--a2);min-width:28px;text-align:left}
+
+/* source */
+.src-tabs{display:flex;gap:5px;margin-bottom:10px}
+.stab{padding:5px 13px;font-size:12px;font-weight:500;border-radius:20px;cursor:pointer;border:1px solid var(--b);background:var(--bg3);color:var(--t2);transition:all .15s}
+.stab.on{background:var(--a3);border-color:rgba(124,109,250,.4);color:var(--a2)}
+.upload-z{border:1.5px dashed var(--b2);border-radius:var(--r12);padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg3)}
+.upload-z:hover{border-color:var(--a);background:var(--a4)}
+.upload-z.has{border-color:var(--g);background:rgba(6,214,160,.04)}
+.upload-z .uz-icon{font-size:28px;margin-bottom:8px}
+.upload-z p{font-size:13px;color:var(--t2)}.upload-z small{font-size:11px;color:var(--t3)}
+.uz-name{font-size:12px;color:var(--g);font-weight:600;margin-top:6px}
+#file-in{display:none}
+.clear-btn{display:none;margin-top:8px;padding:5px 14px;font-size:11px;font-family:'Vazirmatn',sans-serif;background:rgba(255,107,107,.1);color:var(--r);border:1px solid rgba(255,107,107,.25);border-radius:6px;cursor:pointer;transition:all .15s}
+.clear-btn:hover{background:rgba(255,107,107,.2)}
+
+/* model badge */
+.model-badge{display:flex;align-items:center;gap:14px;background:var(--bg3);border:1px solid rgba(124,109,250,.3);border-radius:var(--r12);padding:12px 16px;margin-top:6px}
+.mb-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--a3),rgba(6,214,160,.08));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.mb-name{font-size:13px;font-weight:600;color:var(--a2)}.mb-sub{font-size:10px;color:var(--t3);margin-top:2px}
+.mb-pill{margin-right:auto;background:rgba(6,214,160,.1);border:1px solid rgba(6,214,160,.25);border-radius:20px;padding:3px 12px;font-size:10px;color:var(--g);font-weight:700}
+
+/* cost */
+.cost-card{background:var(--bg3);border:1px solid var(--b);border-radius:var(--r12);padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+.cost-label{font-size:12px;color:var(--t2)}
+.cost-val{font-size:20px;font-weight:700;color:var(--a2)}
+
+/* button */
+.btn-row{display:flex;align-items:center;justify-content:space-between;margin-top:1.6rem}
+.btn{padding:11px 24px;font-size:13px;font-weight:600;font-family:'Vazirmatn',sans-serif;border-radius:var(--r8);border:1px solid var(--b2);cursor:pointer;background:var(--bg3);color:var(--t);transition:all .2s}
+.btn:hover{background:var(--bg4);border-color:var(--b3)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--a),#9b8cff);color:#fff;border:none;box-shadow:0 4px 20px rgba(124,109,250,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(124,109,250,.4);background:linear-gradient(135deg,#8b7cfb,#a99dff)}
+.btn-primary:disabled{background:linear-gradient(135deg,var(--a),#9b8cff);transform:none;box-shadow:none}
+
+/* screens */
+.sc{display:none}.sc.on{display:block;animation:fadeUp .3s ease}
+
+/* pipeline */
+.pipeline{display:flex;flex-direction:column;gap:8px;margin-bottom:1.2rem}
+.pi{display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--b);border-radius:var(--r12);padding:12px 16px;transition:all .3s}
+.pi.active{border-color:rgba(124,109,250,.4);background:var(--a4)}
+.pi.done{border-color:rgba(6,214,160,.25);background:rgba(6,214,160,.04)}
+.pi.err{border-color:rgba(255,107,107,.25);background:rgba(255,107,107,.04)}
+.pi-icon{font-size:20px;width:30px;text-align:center;flex-shrink:0}
+.pi-body{flex:1}.pi-title{font-size:13px;font-weight:500;color:var(--t)}
+.pi-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.pi-st{font-size:11px;font-weight:700;flex-shrink:0}
+.pi.active .pi-st{color:var(--a2)}.pi.done .pi-st{color:var(--g)}.pi.err .pi-st{color:var(--r)}
+.spin-wrap{display:flex;align-items:center;gap:8px}
+.mini-spin{width:14px;height:14px;border:2px solid var(--b2);border-top-color:var(--a2);border-radius:50%;animation:sp .6s linear infinite;flex-shrink:0}
+
+/* progress */
+.prog-wrap{background:var(--bg3);border-radius:4px;height:3px;overflow:hidden;margin:10px 0}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--a),var(--g));border-radius:4px;transition:width .5s ease}
+.prog-txt{font-size:12px;color:var(--t2);margin-top:4px}
+
+/* review */
+.rev-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:1rem}
+.rc{background:var(--bg3);border:1px solid var(--b);border-radius:var(--r12);overflow:hidden;transition:border-color .25s,transform .2s}
+.rc:hover{transform:translateY(-2px)}
+.rc.approved{border-color:rgba(6,214,160,.4);box-shadow:0 0 20px rgba(6,214,160,.08)}
+.rc img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+.rc-body{padding:10px 12px}
+.rc-num{font-size:10px;color:var(--t3);margin-bottom:3px;font-weight:600;letter-spacing:.05em}
+.rc-title{font-size:12px;font-weight:600;color:var(--t);margin-bottom:8px;line-height:1.4}
+.rc-actions{display:flex;gap:6px}
+.rc-actions button{flex:1;padding:7px;font-size:11px;font-family:'Vazirmatn',sans-serif;border-radius:7px;cursor:pointer;border:1px solid var(--b);font-weight:600;transition:all .15s}
+.ia-ok{background:rgba(6,214,160,.08);color:var(--g);border-color:rgba(6,214,160,.2)}
+.ia-ok:hover,.ia-ok.sel{background:var(--g);color:#000;border-color:var(--g)}
+.ia-ok:disabled,.ia-redo:disabled{opacity:.4;cursor:not-allowed}
+.ia-redo{background:rgba(255,165,82,.08);color:var(--o);border-color:rgba(255,165,82,.2)}
+.ia-redo:hover{background:var(--o);color:#000}
+.rc-ph{width:100%;aspect-ratio:16/9;background:var(--bg2);display:flex;align-items:center;justify-content:center}
+.rc-err-ph{width:100%;aspect-ratio:16/9;background:rgba(255,107,107,.05);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--r)}
+
+/* notice */
+.notice{background:rgba(255,165,82,.07);border:1px solid rgba(255,165,82,.18);border-radius:var(--r8);padding:10px 14px;font-size:12px;color:var(--o);margin-bottom:.9rem;line-height:1.6}
+.err-box{background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.18);border-radius:var(--r8);padding:12px 14px;font-size:13px;color:var(--r);line-height:1.7;margin-top:.9rem}
+.ok-box{background:rgba(6,214,160,.07);border:1px solid rgba(6,214,160,.18);border-radius:var(--r16);padding:1.4rem 1.6rem;font-size:13px;color:var(--g);line-height:1.9}
+.ok-box strong{font-weight:700;font-size:14px}
+.dl-btn{display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:11px 24px;background:linear-gradient(135deg,var(--g),#00c4a7);color:#000;border-radius:var(--r8);font-size:13px;font-weight:700;font-family:'Vazirmatn',sans-serif;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(6,214,160,.25);transition:all .2s}
+.dl-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(6,214,160,.35)}
+
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:560px){.g2,.g3,.rev-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="shell">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-tag"><span></span> AI Powered Presentation</div>
+  <h1>پرزنتیشن <em>هوشمند</em></h1>
+  <p>موضوع، مخاطب و سبک را انتخاب کنید<br>Claude و Imagen بقیه را می‌سازند</p>
+</div>
+
+<!-- API KEYS -->
+<div class="api-card">
+  <div class="api-hdr">
+    <div class="api-dot"></div>
+    <div><div class="api-title">کلیدهای API</div><div class="api-sub">یک‌بار وارد کنید — در مرورگر ذخیره می‌شود</div></div>
+  </div>
+  <div class="g2">
+    <div class="fld">
+      <label>Anthropic (Claude)</label>
+      <div class="kw">
+        <input type="text" id="ant-k" placeholder="sk-ant-api03-..." oninput="saveK()"/>
+        <button class="keye" onclick="toggleK('ant-k')">👁</button>
+      </div>
+    </div>
+    <div class="fld">
+      <label>Google (Gemini)</label>
+      <div class="kw">
+        <input type="text" id="gem-k" placeholder="AIzaSy..." oninput="saveK()"/>
+        <button class="keye" onclick="toggleK('gem-k')">👁</button>
+      </div>
+    </div>
+  </div>
+  <div class="kst" id="kst"></div>
+</div>
+
+<!-- STEPS -->
+<div class="steps">
+  <div class="stp active" id="s1"><div class="stp-n">۱</div><span class="stp-lbl">تنظیمات</span></div>
+  <div class="stp" id="s2"><div class="stp-n">۲</div><span class="stp-lbl">پردازش</span></div>
+  <div class="stp" id="s3"><div class="stp-n">۳</div><span class="stp-lbl">تأیید</span></div>
+  <div class="stp" id="s4"><div class="stp-n">۴</div><span class="stp-lbl">خروجی</span></div>
+</div>
+
+<!-- SCREEN 1 -->
+<div class="sc on" id="sc1">
+
+  <div class="card" style="animation-delay:.1s">
+    <div class="card-hdr"><div class="c-icon">📝</div><div><div class="c-title">محتوا</div><div class="c-sub">موضوع پرزنتیشن را توضیح دهید</div></div></div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="fld"><label>موضوع اصلی *</label><input type="text" id="topic" placeholder="مثال: دیابت، هوش مصنوعی..." oninput="upd()"/></div>
+      <div class="fld"><label>زیرموضوع</label><input type="text" id="sub" placeholder="مثال: درمان دارویی، GPT-4..." oninput="upd()"/></div>
+    </div>
+    <div class="fld"><label>جزئیات اضافه <span style="color:var(--t3);font-weight:400">(اختیاری)</span></label>
+      <textarea id="detail" placeholder="نکات خاص، تأکیدها، اطلاعاتی که باید پوشش داده شود..."></textarea>
+    </div>
+  </div>
+
+  <div class="card" style="animation-delay:.15s">
+    <div class="card-hdr"><div class="c-icon">📚</div><div><div class="c-title">منبع <span style="color:var(--t3);font-weight:400;font-size:11px">(اختیاری)</span></div><div class="c-sub">Claude از این برای دقت محتوا استفاده می‌کند</div></div></div>
+    <div class="src-tabs">
+      <div class="stab on" id="tab-n" onclick="setSrc('n')">بدون منبع</div>
+      <div class="stab" id="tab-t" onclick="setSrc('t')">نام کتاب / مقاله</div>
+      <div class="stab" id="tab-p" onclick="setSrc('p')">آپلود فایل</div>
+    </div>
+    <div id="src-n"></div>
+    <div id="src-t" style="display:none">
+      <div class="fld"><label>عنوان منبع</label><input type="text" id="src-tv" placeholder="مثال: Harrison's Internal Medicine..."/></div>
+    </div>
+    <div id="src-p" style="display:none">
+      <div class="upload-z" id="upz" onclick="document.getElementById('file-in').click()">
+        <div class="uz-icon">📎</div>
+        <p>کلیک کنید تا فایل آپلود کنید</p>
+        <small>PDF، Word، Excel، TXT — حداکثر ۱۰ مگابایت</small>
+        <div class="uz-name" id="uz-name" style="display:none"></div>
+      </div>
+      <input type="file" id="file-in" accept=".pdf,.doc,.docx,.txt,.csv,.md" onchange="onFile(this)"/>
+      <button class="clear-btn" id="clear-btn" onclick="clearFile()">✕ حذف فایل</button>
+    </div>
+  </div>
+
+  <div class="card" style="animation-delay:.2s">
+    <div class="card-hdr"><div class="c-icon">👥</div><div><div class="c-title">مخاطب</div><div class="c-sub">Claude محتوا را برای این مخاطب بهینه می‌کند</div></div></div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="fld"><label>مخاطب *</label>
+        <select id="aud-s" onchange="combo('aud-s','aud-c','aud-i')">
+          <option value="">— انتخاب کنید —</option>
+          <option>پزشکان متخصص</option><option>دانشجویان پزشکی</option>
+          <option>بیماران و عموم</option><option>پرستاران</option>
+          <option>مدیران ارشد</option><option>سرمایه‌گذاران</option>
+          <option>دانش‌آموزان</option><option>کودکان</option>
+          <option>استارتاپ‌ها</option><option>محققان</option>
+          <option>متخصصان IT</option>
+          <option value="__o__">✏️ غیره...</option>
+        </select>
+        <div class="ci" id="aud-c"><input type="text" id="aud-i" placeholder="مخاطب خود را بنویسید..." oninput="upd()"/></div>
+      </div>
+      <div class="fld"><label>سطح دانش</label>
+        <select id="lvl-s" onchange="combo('lvl-s','lvl-c','lvl-i')">
+          <option>مقدماتی</option><option selected>متوسط</option>
+          <option>پیشرفته</option><option>تخصصی</option>
+          <option value="__o__">✏️ غیره...</option>
+        </select>
+        <div class="ci" id="lvl-c"><input type="text" id="lvl-i" placeholder="سطح دلخواه..." oninput="upd()"/></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="fld"><label>لحن</label>
+        <select id="tone-s" onchange="combo('tone-s','tone-c','tone-i')">
+          <option>رسمی و آکادمیک</option><option selected>نیمه‌رسمی</option>
+          <option>محاوره‌ای</option><option>انگیزشی</option><option>داستانی</option>
+          <option value="__o__">✏️ غیره...</option>
+        </select>
+        <div class="ci" id="tone-c"><input type="text" id="tone-i" placeholder="لحن دلخواه..." oninput="upd()"/></div>
+      </div>
+      <div class="fld"><label>زبان متن داخل تصاویر</label>
+        <div class="tags" id="lang-tags">
+          <div class="tag on" onclick="pickLang(this,'bi')">فارسی + EN</div>
+          <div class="tag" onclick="pickLang(this,'fa')">فارسی</div>
+          <div class="tag" onclick="pickLang(this,'en')">English</div>
+          <div class="tag" onclick="pickLang(this,'no')">بدون متن</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="animation-delay:.25s">
+    <div class="card-hdr"><div class="c-icon">🎨</div><div><div class="c-title">سبک بصری</div><div class="c-sub">ظاهر تصاویر</div></div></div>
+    <div class="g2" style="margin-bottom:12px">
+      <div class="fld"><label>سبک تصویر</label>
+        <select id="sty-s" onchange="combo('sty-s','sty-c','sty-i')">
+          <optgroup label="هنری">
+            <option selected>سینمایی</option><option>کارتونی</option>
+            <option>انیمه</option><option>آبرنگ</option>
+            <option>فلت مدرن</option><option>سه‌بعدی</option>
+            <option>طراحی مداد</option><option>رنگ روغن</option>
+            <option>پاپ آرت</option><option>مینیمالیست</option>
+          </optgroup>
+          <optgroup label="عکاسی">
+            <option>عکاسی واقعی</option><option>پرتره</option>
+          </optgroup>
+          <optgroup label="علمی">
+            <option>تصویر پزشکی</option><option>اینفوگرافیک</option><option>دیاگرام</option>
+          </optgroup>
+          <option value="__o__">✏️ غیره...</option>
+        </select>
+        <div class="ci" id="sty-c"><input type="text" id="sty-i" placeholder="سبک دلخواه..." oninput="upd()"/></div>
+      </div>
+      <div class="fld"><label>پالت رنگی</label>
+        <select id="pal-s" onchange="combo('pal-s','pal-c','pal-i')">
+          <option selected>پررنگ و پویا</option><option>پاستل ملایم</option>
+          <option>تیره و دراماتیک</option><option>تک‌رنگ</option>
+          <option>گرم — طلایی</option><option>سرد — آبی</option>
+          <option>طبیعت — سبز</option><option>نئون</option><option>سفید مینیمال</option>
+          <option value="__o__">✏️ غیره...</option>
+        </select>
+        <div class="ci" id="pal-c"><input type="text" id="pal-i" placeholder="پالت دلخواه..." oninput="upd()"/></div>
+      </div>
+    </div>
+    <div class="fld"><label>مدل تولید تصویر</label>
+      <div class="model-badge">
+        <div class="mb-icon">★</div>
+        <div><div class="mb-name">Imagen 4 Standard</div><div class="mb-sub">کیفیت بالا — $0.04 در هر تصویر</div></div>
+        <div class="mb-pill">✓ فعال</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="animation-delay:.3s">
+    <div class="card-hdr"><div class="c-icon">⚙️</div><div><div class="c-title">تنظیمات خروجی</div><div class="c-sub">فرمت نهایی</div></div></div>
+    <div class="g3" style="margin-bottom:14px">
+      <div class="fld"><label>نسبت تصویر</label>
+        <select id="rat-s" onchange="combo('rat-s','rat-c','rat-i')">
+          <option value="16:9" selected>۱۶:۹ پرزنتیشن</option>
+          <option value="4:3">۴:۳ کلاسیک</option>
+          <option value="1:1">۱:۱ مربع</option>
+          <option value="9:16">۹:۱۶ عمودی</option>
+          <option value="__o__">✏️ غیره</option>
+        </select>
+        <div class="ci" id="rat-c"><input type="text" id="rat-i" placeholder="مثال: 3:2" oninput="upd()"/></div>
+      </div>
+      <div class="fld"><label>خروجی</label>
+        <select id="out-s">
+          <option value="pptx">PowerPoint (.pptx)</option>
+          <option value="images">تصاویر (ZIP)</option>
+        </select>
+      </div>
+      <div class="fld"><label>تعداد اسلاید: <b id="cnt-l" style="color:var(--a2)">۱۰</b></label>
+        <div class="sl-row">
+          <input type="range" min="3" max="20" value="10" id="cnt-r" oninput="onCnt(this.value)"/>
+          <span class="sl-n" id="cnt-n">۱۰</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="animation-delay:.35s">
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.9rem">هزینه تخمینی این پروژه</div>
+    <div class="cost-card">
+      <div class="cost-label">💰 هزینه واقعی</div>
+      <div class="cost-val" id="c-tom">—</div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <div></div>
+    <button class="btn btn-primary" id="btn-go" disabled onclick="startAll()">شروع اتوماتیک ←</button>
+  </div>
+</div>
+
+<!-- SCREEN 2: PIPELINE -->
+<div class="sc" id="sc2">
+  <div class="card">
+    <div class="card-hdr"><div class="c-icon">🚀</div><div><div class="c-title">پردازش اتوماتیک</div><div class="c-sub" id="pipe-sub">لطفاً صبر کنید...</div></div></div>
+    <div class="pipeline">
+      <div class="pi" id="pi1">
+        <div class="pi-icon">🧠</div>
+        <div class="pi-body">
+          <div class="pi-title">Claude موضوع را تحلیل و طراحی می‌کند</div>
+          <div class="pi-sub" id="pi1-sub">پرورش ایده + نوشتن prompt های خلاقانه</div>
+        </div>
+        <div class="pi-st" id="pi1-st">در انتظار</div>
+      </div>
+      <div class="pi" id="pi2">
+        <div class="pi-icon">🖼️</div>
+        <div class="pi-body">
+          <div class="pi-title">Imagen 4 تصاویر را می‌سازد</div>
+          <div class="pi-sub" id="pi2-sub">تولید یک‌به‌یک با کیفیت بالا</div>
+        </div>
+        <div class="pi-st" id="pi2-st">در انتظار</div>
+      </div>
+    </div>
+    <div id="prog-wrap" style="display:none">
+      <div style="background:var(--bg3);border-radius:4px;height:3px;overflow:hidden;margin:8px 0"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+      <div class="prog-txt" id="prog-txt"></div>
+    </div>
+    <div class="err-box" id="err-box" style="display:none"></div>
+  </div>
+  <div class="btn-row" id="pipe-back" style="display:none">
+    <button class="btn" onclick="setStep(1)">← بازگشت</button>
+    <button class="btn btn-primary" onclick="startAll()">↻ تلاش مجدد</button>
+  </div>
+</div>
+
+<!-- SCREEN 3: REVIEW -->
+<div class="sc" id="sc3">
+  <div class="card">
+    <div class="card-hdr"><div class="c-icon">✅</div><div><div class="c-title">تأیید تصاویر</div><div class="c-sub">هر تصویر را بررسی کنید</div></div></div>
+    <div class="notice">تصاویر را بررسی کنید — تأیید یا ساخت دوباره. بعد دکمه ساخت PowerPoint را بزنید.</div>
+    <div class="rev-grid" id="rev-grid"></div>
+  </div>
+  <div class="btn-row" style="margin-top:1rem">
+    <button class="btn" onclick="setStep(1)">← از اول</button>
+    <button class="btn btn-primary" onclick="buildFinal()">ساخت PowerPoint ←</button>
+  </div>
+</div>
+
+<!-- SCREEN 4: DONE -->
+<div class="sc" id="sc4">
+  <div class="card">
+    <div class="card-hdr"><div class="c-icon">🎉</div><div><div class="c-title">پرزنتیشن آماده است!</div><div class="c-sub" id="done-sub"></div></div></div>
+    <div id="done-out"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="location.reload()">+ پروژه جدید</button>
+    <div></div>
+  </div>
+</div>
+
+</div>
+<script>
+// ═══════════════════════════════
+// CONFIG
+// ═══════════════════════════════
+const FIXED_ANT = '';
+const FIXED_GEM = '';
+const MODEL_IMG = 'imagen-4.0-generate-001';
+const TOMAN = 160000;
+
+// ═══════════════════════════════
+// STATE
+// ═══════════════════════════════
+let lang='bi', srcMode='n', fileb64='', fileMime='application/pdf', fileName='';
+let cnt=10, prompts=[], images=[], proj={};
+const p2=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+
+// ═══════════════════════════════
+// KEYS
+// ═══════════════════════════════
+function loadK(){
+  const a=localStorage.getItem('AK')||FIXED_ANT;
+  const g=localStorage.getItem('GK')||FIXED_GEM;
+  if(a)document.getElementById('ant-k').value=a;
+  if(g)document.getElementById('gem-k').value=g;
+  kStatus();
+}
+function saveK(){
+  const a=document.getElementById('ant-k').value.trim();
+  const g=document.getElementById('gem-k').value.trim();
+  if(a)localStorage.setItem('AK',a);
+  if(g)localStorage.setItem('GK',g);
+  kStatus(); upd();
+}
+function kStatus(){
+  const a=getAK(),g=getGK(),el=document.getElementById('kst');
+  if(a&&g){el.textContent='✓ هر دو کلید ذخیره شده‌اند';el.className='kst ok';}
+  else if(a){el.textContent='⚠ Gemini Key وارد نشده';el.className='kst warn';}
+  else if(g){el.textContent='⚠ Anthropic Key وارد نشده';el.className='kst warn';}
+  else{el.textContent='';el.className='kst';}
+}
+function getAK(){return document.getElementById('ant-k').value.trim()||localStorage.getItem('AK')||FIXED_ANT;}
+function getGK(){return document.getElementById('gem-k').value.trim()||localStorage.getItem('GK')||FIXED_GEM;}
+function toggleK(id){const e=document.getElementById(id);e.type=e.type==='password'?'text':'password';}
+
+// ═══════════════════════════════
+// FORM
+// ═══════════════════════════════
+function setSrc(m){
+  srcMode=m;
+  ['n','t','p'].forEach(x=>{
+    document.getElementById('tab-'+x).classList.toggle('on',x===m);
+    document.getElementById('src-'+x).style.display=x===m?'':'none';
+  });
+}
+function onFile(inp){
+  const f=inp.files[0]; if(!f)return;
+  if(f.size>10*1024*1024){alert('حجم فایل بیش از ۱۰ مگابایت است');return;}
+  document.getElementById('upz').classList.add('has');
+  const nm=document.getElementById('uz-name');nm.style.display='';nm.textContent='✓ '+f.name;
+  document.getElementById('clear-btn').style.display='';
+  const ext=f.name.split('.').pop().toLowerCase();
+  const mm={pdf:'application/pdf',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',txt:'text/plain',csv:'text/csv',md:'text/plain'};
+  fileMime=mm[ext]||'application/pdf'; fileName=f.name;
+  const r=new FileReader();r.onload=e=>{fileb64=e.target.result.split(',')[1];};r.readAsDataURL(f);
+}
+function clearFile(){
+  fileb64='';fileName='';
+  document.getElementById('file-in').value='';
+  document.getElementById('upz').classList.remove('has');
+  document.getElementById('uz-name').style.display='none';
+  document.getElementById('clear-btn').style.display='none';
+}
+function combo(sid,cid,iid){
+  const s=document.getElementById(sid),c=document.getElementById(cid),i=document.getElementById(iid);
+  if(s.value==='__o__'){c.classList.add('show');if(i){i.value='';i.focus();}}
+  else{c.classList.remove('show');if(i)i.value='';}
+  upd();
+}
+function getV(sid,iid){
+  const s=document.getElementById(sid);if(!s)return'';
+  if(s.value==='__o__')return(document.getElementById(iid)?.value||'').trim();
+  return s.value.trim();
+}
+function pickLang(el,v){
+  document.querySelectorAll('#lang-tags .tag').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');lang=v;upd();
+}
+function onCnt(v){
+  cnt=parseInt(v);
+  document.getElementById('cnt-n').textContent=p2(cnt);
+  document.getElementById('cnt-l').textContent=p2(cnt);
+  upd();
+}
+function setStep(n){
+  for(let i=1;i<=4;i++){const e=document.getElementById('s'+i);if(!e)continue;e.className='stp'+(i<n?' done':i===n?' active':'');}
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  const sc=document.getElementById('sc'+n);if(sc)sc.classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function upd(){
+  const img=0.04*cnt,real=img+0.04,tom=Math.round(real*TOMAN);
+  document.getElementById('c-tom').textContent=tom.toLocaleString('fa-IR')+' تومان';
+  const ready=document.getElementById('topic').value.trim().length>1&&getV('aud-s','aud-i').length>1&&getAK()&&getGK();
+  document.getElementById('btn-go').disabled=!ready;
+}
+function setPi(id,state,sub){
+  const el=document.getElementById(id);
+  el.className='pi '+state;
+  const st=document.getElementById(id+'-st');
+  if(state==='active'){st.innerHTML='<div class="spin-wrap"><div class="mini-spin"></div>در حال اجرا</div>';}
+  else if(state==='done')st.textContent='✓ تمام';
+  else if(state==='err')st.textContent='✕ خطا';
+  else st.textContent='در انتظار';
+  if(sub)document.getElementById(id+'-sub').textContent=sub;
+}
+function showErr(msg){
+  const e=document.getElementById('err-box');
+  e.style.display='';
+  e.innerHTML='<strong>خطا:</strong><br>'+msg+'<br><small style="opacity:.7">لطفاً API Key ها را بررسی کنید و دوباره امتحان کنید.</small>';
+  document.getElementById('pipe-back').style.display='flex';
+}
+
+// ═══════════════════════════════
+// STYLE MAPS
+// ═══════════════════════════════
+const SM={'سینمایی':'cinematic photography, dramatic lighting, shallow depth of field, anamorphic lens, film grain, Kodak color grading','کارتونی':'cartoon illustration, bold outlines, cel-shading, expressive characters, vibrant colors','انیمه':'anime style, cel-shading, detailed, Japanese animation','آبرنگ':'watercolor painting, soft wet edges, transparent washes, artistic paper texture','فلت مدرن':'flat design, geometric shapes, minimal shadows, bold color blocks, vector art','سه‌بعدی':'3D render, PBR materials, studio lighting, ray-traced reflections','طراحی مداد':'pencil sketch, cross-hatching, graphite texture, hand-drawn linework','رنگ روغن':'oil painting, thick impasto, visible brushstrokes, classical style','پاپ آرت':'pop art, bold outlines, halftone dots, saturated colors','مینیمالیست':'minimalist, negative space, simple forms, limited palette','عکاسی واقعی':'photorealistic, DSLR quality, natural lighting, high resolution','پرتره':'professional portrait, studio lighting, shallow depth of field','تصویر پزشکی':'medical illustration, anatomical accuracy, clean white background, clinical style','اینفوگرافیک':'infographic design, data visualization, flat icons, clean layout','دیاگرام':'technical diagram, flowchart, clean lines, labeled nodes'};
+const PM={'پررنگ و پویا':'vibrant saturated colors, high contrast, bold energetic palette','پاستل ملایم':'soft pastel tones, gentle muted colors','تیره و دراماتیک':'dark moody palette, deep shadows, dramatic contrast','تک‌رنگ':'monochromatic, single hue tonal range','گرم — طلایی':'warm golden palette, amber tones, earthy warmth','سرد — آبی':'cool blue palette, teal and cyan tones','طبیعت — سبز':'natural green palette, earthy forest tones','نئون':'neon cyberpunk, glowing colors, dark background','سفید مینیمال':'clean white and light gray, minimal palette'};
+const RM={'16:9':'widescreen 16:9 composition','4:3':'standard 4:3 composition','1:1':'square 1:1 composition','9:16':'vertical 9:16 composition'};
+const LR={'bi':'BILINGUAL: large Persian Farsi title in bold calligraphy (max 4 words) + English subtitle in clean sans-serif (max 8 words). High contrast placement.','fa':'Persian Farsi text only, bold elegant calligraphy, max 5 words','en':'English text only, clean modern typography, max 8 words','no':'NO text anywhere — purely visual, no letters or numbers'};
+
+// ═══════════════════════════════
+// MAIN
+// ═══════════════════════════════
+async function startAll(){
+  const topic=document.getElementById('topic').value.trim();
+  const sub=document.getElementById('sub').value.trim();
+  const detail=document.getElementById('detail').value.trim();
+  const aud=getV('aud-s','aud-i');
+  const lvl=getV('lvl-s','lvl-i');
+  const tone=getV('tone-s','tone-i');
+  const styRaw=getV('sty-s','sty-i');
+  const palRaw=getV('pal-s','pal-i');
+  const ratRaw=getV('rat-s','rat-i');
+  const outMode=document.getElementById('out-s').value;
+  const srcTxt=document.getElementById('src-tv')?.value.trim()||'';
+  proj={topic,sub,detail,aud,lvl,tone,styRaw,palRaw,ratRaw,outMode,lang,cnt};
+
+  const styP=SM[styRaw]||styRaw;
+  const palP=PM[palRaw]||palRaw;
+  const ratP=RM[ratRaw]||ratRaw;
+  const langR=LR[lang]||lang;
+
+  setStep(2);
+  document.getElementById('err-box').style.display='none';
+  document.getElementById('pipe-back').style.display='none';
+  document.getElementById('prog-wrap').style.display='none';
+  document.getElementById('pipe-sub').textContent='لطفاً صبر کنید — صفحه را نبندید';
+  setPi('pi1','active'); setPi('pi2','');
+
+  let srcCtx='';
+  if(srcMode==='t'&&srcTxt)srcCtx=`\n\nREFERENCE: "${srcTxt}"`;
+  else if(srcMode==='p'&&fileb64)srcCtx=`\n\nREFERENCE FILE: "${fileName}" has been uploaded. Extract key concepts from it.`;
+
+  let nar='';
+  if(cnt<=5)nar=`1:Hook, 2-${cnt-1}:Core concepts, ${cnt}:Strong close`;
+  else if(cnt<=10)nar=`1:Hook, 2-3:Context, 4-${cnt-2}:Core concepts, ${cnt-1}:Example, ${cnt}:Close`;
+  else nar=`1-2:Hook+context, 3-4:Problem, 5-${Math.floor(cnt*.55)}:Core, ${Math.floor(cnt*.55)+1}-${cnt-2}:Examples, ${cnt-1}:Takeaways, ${cnt}:Close`;
+
+  const sys=`You are a world-class creative presentation director AND Imagen 4 prompt engineer. You have TOTAL creative control. The user provided basic parameters — YOU design everything visually.
+
+PROJECT:
+Topic: ${topic}
+Sub-topic: ${sub||'none'}
+Details: ${detail||'none'}
+Audience: ${aud}
+Level: ${lvl}
+Tone: ${tone}
+Style: ${styP}
+Palette: ${palP}
+Format: ${ratP}
+Slides: ${cnt}${srcCtx}
+
+NARRATIVE: ${nar}
+
+YOUR MISSION:
+For each slide, design a visually stunning image that tells a story. You decide:
+1. COMPOSITION — single scene, split panels, layered depth, diagram style
+2. HOOK ELEMENT — one surprising/emotional element that makes THIS slide unforgettable for ${aud}
+3. ALL TEXT IN THE IMAGE — you write every word that appears: ${langR}
+4. COMPLETE IMAGEN PROMPT — 100-130 words English, include style/palette/format/lighting/depth/text content
+
+RULES:
+- Every prompt in English only
+- Include all text content with exact wording
+- Style: ${styP}
+- Palette: ${palP}
+- Format: ${ratP}
+- Text rule: ${langR}
+- End every prompt: "Imagen 4 quality, sharp focus, professional presentation slide, ${ratP}"
+- Vary compositions across slides (min 2 split, 2 human, 1 close-up, 1 wide, 2 diagram)
+- Persian titles: max 5 words, evocative not generic
+
+RETURN ONLY VALID JSON (no markdown, no other text):
+{"slides":[{"number":1,"title_fa":"عنوان","prompt_en":"100-130 word prompt...","desc_fa":"چرا این اسلاید جذاب است"}]}`;
+
+  try{
+    let msgs;
+    if(srcMode==='p'&&fileb64){
+      msgs=[{role:'user',content:[
+        {type:'document',source:{type:'base64',media_type:fileMime,data:fileb64}},
+        {type:'text',text:`Generate exactly ${cnt} prompts based on this document. Return ONLY valid JSON.`}
+      ]}];
+    }else{
+      msgs=[{role:'user',content:`Generate exactly ${cnt} prompts. Return ONLY valid JSON, no markdown.`}];
+    }
+
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':getAK(),
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({model:'claude-3-5-sonnet-20241022',max_tokens:8000,system:sys,messages:msgs})
+    });
+
+    if(!res.ok){
+      const e=await res.json();
+      throw new Error((e.error?.message||'HTTP '+res.status)+' — کد: '+res.status);
+    }
+    const d=await res.json();
+    const raw=d.content?.find(b=>b.type==='text')?.text||'';
+    const clean=raw.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(clean);
+    if(!parsed.slides||!Array.isArray(parsed.slides))throw new Error('فرمت JSON نادرست');
+    prompts=parsed.slides;
+    setPi('pi1','done',`${p2(prompts.length)} prompt خلاقانه نوشته شد`);
+  }catch(e){
+    setPi('pi1','err');
+    showErr('خطا در Claude: '+e.message);
+    return;
+  }
+
+  // IMAGEN
+  setPi('pi2','active');
+  document.getElementById('prog-wrap').style.display='';
+  images=prompts.map(s=>({title:s.title_fa,prompt:s.prompt_en,b64:null,err:null}));
+
+  for(let i=0;i<prompts.length;i++){
+    document.getElementById('prog-txt').textContent=`تصویر ${p2(i+1)} از ${p2(prompts.length)}...`;
+    document.getElementById('prog-bar').style.width=Math.round(i/prompts.length*100)+'%';
+    await fetchImg(i);
+  }
+  document.getElementById('prog-bar').style.width='100%';
+  const good=images.filter(x=>x.b64).length;
+  document.getElementById('prog-txt').textContent=`${p2(good)} تصویر آماده شد`;
+  setPi('pi2','done',`${p2(good)} از ${p2(images.length)} تصویر`);
+  document.getElementById('pipe-sub').textContent='✓ آماده — لطفاً تصاویر را تأیید کنید';
+  showReview();
+}
+
+async function fetchImg(i){
+  try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_IMG}:predict?key=${getGK()}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({instances:[{prompt:images[i].prompt}],parameters:{sampleCount:1,aspectRatio:proj.ratRaw||'16:9'}})
+    });
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error?.message||'HTTP '+r.status);
+    const b64=d.predictions?.[0]?.bytesBase64Encoded;
+    if(!b64)throw new Error('تصویری تولید نشد');
+    images[i].b64=b64;
+  }catch(e){images[i].err=e.message;}
+}
+
+function showReview(){
+  setStep(3);
+  document.getElementById('rev-grid').innerHTML=images.map((img,i)=>renderRC(i,img)).join('');
+}
+function renderRC(i,img){
+  const imgH=img.b64
+    ?`<img src="data:image/png;base64,${img.b64}" alt="${img.title}" loading="lazy"/>`
+    :`<div class="rc-err-ph">❌ ${img.err||'خطا'}</div>`;
+  return`<div class="${img.approved?'rc approved':'rc'}" id="rc-${i}">
+    ${imgH}
+    <div class="rc-body">
+      <div class="rc-num">اسلاید ${p2(i+1)}</div>
+      <div class="rc-title">${img.title}</div>
+      <div class="rc-actions">
+        <button class="ia-ok${img.approved?' sel':''}" id="ok-${i}" onclick="approveImg(${i})">✓ تأیید</button>
+        <button class="ia-redo" id="redo-${i}" onclick="regenImg(${i})">↻ دوباره</button>
+      </div>
+    </div>
+  </div>`;
+}
+function approveImg(i){
+  images[i].approved=true;
+  document.getElementById(`rc-${i}`).className='rc approved';
+  document.getElementById(`ok-${i}`).classList.add('sel');
+}
+async function regenImg(i){
+  const card=document.getElementById(`rc-${i}`);
+  document.getElementById(`ok-${i}`).disabled=true;
+  document.getElementById(`redo-${i}`).disabled=true;
+  document.getElementById(`redo-${i}`).textContent='در حال ساخت...';
+  images[i].b64=null;images[i].err=null;images[i].approved=false;
+  card.innerHTML=`<div class="rc-ph"><div class="mini-spin" style="width:24px;height:24px;border-width:2px"></div></div><div class="rc-body"><div class="rc-title">${images[i].title}</div></div>`;
+  await fetchImg(i);
+  card.outerHTML=renderRC(i,images[i]);
+}
+
+// ═══════════════════════════════
+// BUILD PPTX
+// ═══════════════════════════════
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+async function buildFinal(){
+  const good=images.filter(x=>x.b64);
+  if(!good.length){alert('هیچ تصویری موجود نیست');return;}
+  if(proj.outMode==='images'){await buildZip(good);return;}
+  await buildPPTX(good);
+}
+
+async function buildPPTX(good){
+  setStep(4);
+  document.getElementById('done-sub').textContent='در حال ساخت...';
+  document.getElementById('done-out').innerHTML='<div style="text-align:center;padding:2rem"><div class="mini-spin" style="width:32px;height:32px;margin:0 auto 1rem"></div><p style="color:var(--t2)">در حال ساخت PowerPoint...</p></div>';
+
+  const topic=proj.topic||'Presentation';
+  const zip=new JSZip();
+  const total=good.length+2;
+  const morph=`<p:transition dur="800" spd="slow"><p14:morph xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" style="objects"/></p:transition>`;
+
+  let ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>`;
+  for(let i=1;i<=total;i++)ct+=`<Override PartName="/ppt/slides/slide${i}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`;
+  ct+=`</Types>`;
+  zip.file('[Content_Types].xml',ct);
+  zip.file('_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/><Relationship Id="rId2" Type="http://schemas.microsoft.com/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`);
+  zip.file('docProps/core.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${esc(topic)}</dc:title><dc:creator>AI Presentation</dc:creator></cp:coreProperties>`);
+  zip.file('docProps/app.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>AI Presentation Builder</Application></Properties>`);
+  let si='';for(let i=1;i<=total;i++)si+=`<p:sldId id="${255+i}" r:id="rId${i+4}"/>`;
+  zip.file('ppt/presentation.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldSz cx="9144000" cy="5143500"/><p:notesSz cx="6858000" cy="9144000"/><p:sldIdLst>${si}</p:sldIdLst><p:sldTree/></p:presentation>`);
+  let pr=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>`;
+  for(let i=1;i<=total;i++)pr+=`<Relationship Id="rId${i+4}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i}.xml"/>`;
+  pr+=`</Relationships>`;
+  zip.file('ppt/_rels/presentation.xml.rels',pr);
+  zip.file('ppt/slideMasters/slideMaster1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle><a:lstStyle/></p:titleStyle><p:bodyStyle><a:lstStyle/></p:bodyStyle><p:otherStyle><a:lstStyle/></p:otherStyle></p:txStyles></p:sldMaster>`);
+  zip.file('ppt/slideMasters/_rels/slideMaster1.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>`);
+  zip.file('ppt/slideLayouts/slideLayout1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" type="blank"><p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`);
+  zip.file('ppt/slideLayouts/_rels/slideLayout1.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>`);
+
+  // Cover
+  zip.file('ppt/slides/slide1.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="060608"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="t"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="1714500"/><a:ext cx="8229600" cy="1143000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr" rtl="1"/><a:r><a:rPr lang="fa-IR" sz="4800" b="1" dirty="0"><a:solidFill><a:srgbClr val="b8adff"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${esc(topic)}</a:t></a:r></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="3" name="s"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="2971800"/><a:ext cx="8229600" cy="457200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr" rtl="1"/><a:r><a:rPr lang="fa-IR" sz="1800" b="0" dirty="0"><a:solidFill><a:srgbClr val="7878a0"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${esc(proj.aud?'برای: '+proj.aud:'')}</a:t></a:r></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="4" name="l"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="3657600" y="3600450"/><a:ext cx="1828800" cy="57150"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="7c6dfa"/></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`);
+  zip.file('ppt/slides/_rels/slide1.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`);
+
+  // Content slides
+  for(let i=0;i<good.length;i++){
+    const img=good[i],sn=i+2,imgId=`i${i}`;
+    zip.file(`ppt/media/${imgId}.png`,img.b64,{base64:true});
+    zip.file(`ppt/slides/slide${sn}.xml`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="000000"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:pic><p:nvPicPr><p:cNvPr id="2" name="bg"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="9144000" cy="5143500"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic><p:sp><p:nvSpPr><p:cNvPr id="3" name="bar"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="4457850"/><a:ext cx="9144000" cy="685650"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="000000"><a:alpha val="70000"/></a:srgbClr></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="4" name="ti"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="228600" y="4514400"/><a:ext cx="8229600" cy="571500"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="r" rtl="1"/><a:r><a:rPr lang="fa-IR" sz="2200" b="1" dirty="0"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${esc(img.title)}</a:t></a:r></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="5" name="nu"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="8457600" y="4514400"/><a:ext cx="457200" cy="571500"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" sz="900" dirty="0"><a:solidFill><a:srgbClr val="777777"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${i+1}/${good.length}</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${sn>2?morph:''}</p:sld>`);
+    zip.file(`ppt/slides/_rels/slide${sn}.xml.rels`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${imgId}.png"/></Relationships>`);
+  }
+
+  // End slide
+  const ln=good.length+2;
+  zip.file(`ppt/slides/slide${ln}.xml`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="060608"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr><p:sp><p:nvSpPr><p:cNvPr id="2" name="b"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="0" y="1828800"/><a:ext cx="9144000" cy="1485900"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="7c6dfa"><a:alpha val="20000"/></a:srgbClr></a:solidFill></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="3" name="t"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="1885350"/><a:ext cx="8229600" cy="1371600"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr" rtl="1"/><a:r><a:rPr lang="fa-IR" sz="5400" b="1" dirty="0"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>با تشکر</a:t></a:r></a:p></p:txBody></p:sp><p:sp><p:nvSpPr><p:cNvPr id="4" name="tp"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="3428775"/><a:ext cx="8229600" cy="457200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr" rtl="1"/><a:r><a:rPr lang="fa-IR" sz="1800" b="0" dirty="0"><a:solidFill><a:srgbClr val="b8adff"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${esc(topic)}</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${morph}</p:sld>`);
+  zip.file(`ppt/slides/_rels/slide${ln}.xml.rels`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`);
+
+  const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
+  const url=URL.createObjectURL(blob);
+  const fname=topic+'.pptx';
+  document.getElementById('done-sub').textContent=p2(good.length)+' اسلاید — آماده ارائه';
+  document.getElementById('done-out').innerHTML=`<div class="ok-box">
+    <strong>🎉 پرزنتیشن آماده است!</strong><br><br>
+    📊 <strong>${p2(good.length)} اسلاید</strong> + Cover + پایانی = <strong>${p2(good.length+2)} اسلاید کل</strong><br>
+    ✨ Morph Transition روی همه اسلایدها اعمال شده<br>
+    🎨 سبک: <strong>${proj.styRaw}</strong> | مخاطب: <strong>${proj.aud}</strong><br><br>
+    <button class="dl-btn" onclick="document.getElementById('dlnk').click()">⬇ دانلود ${esc(fname)}</button>
+    <a id="dlnk" href="${url}" download="${fname}" style="display:none"></a><br><br>
+    <small style="color:var(--t3)">📌 در PowerPoint 2019+ باز کنید — Morph خودکار فعال است.</small>
+  </div>`;
+}
+
+async function buildZip(good){
+  setStep(4);
+  const z=new JSZip(),f=z.folder('images');
+  good.forEach((img,i)=>f.file(`slide_${String(i+1).padStart(2,'0')}_${img.title.substring(0,20)}.png`,img.b64,{base64:true}));
+  const blob=await z.generateAsync({type:'blob'});
+  const url=URL.createObjectURL(blob);
+  document.getElementById('done-sub').textContent=p2(good.length)+' تصویر';
+  document.getElementById('done-out').innerHTML=`<div class="ok-box"><strong>✅ ${p2(good.length)} تصویر آماده!</strong><br><br><button class="dl-btn" onclick="document.getElementById('zdl').click()">⬇ دانلود ZIP</button><a id="zdl" href="${url}" download="${proj.topic}_images.zip" style="display:none"></a></div>`;
+}
+
+loadK(); upd();
+</script>
+</body>
+</html>
